@@ -31,11 +31,20 @@ class NeuralNetwork():
         
         return a1, a2
     
-    def loss_func():
-        return
+    def loss_func(self, predictions, labels):
+        # cross-entropy loss calc
+        probs = predictions[np.arange(self.batch_size), labels]
+        loss = -np.log(probs + 1e-15)
+        
+        # mean loss over batch
+        avg_loss = np.mean(loss)
+        
+        return avg_loss
     
     def back_prop():
         return
     
     
 nn = NeuralNetwork(784, 128, 10, 50)
+# nn.loss_func(np.random.rand(50, 10), np.random.randint(0, 10, size=50))
+print(1e-15)
