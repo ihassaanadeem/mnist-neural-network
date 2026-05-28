@@ -7,6 +7,17 @@ class NeuralNetwork():
         self.output_size = output_size
         self.batch_size = batch_size
         
+        self.a1 = None
+        self.a2 = None
+        
+        self.grad_d2 = None
+        self.grad_w2 = None
+        self.grad_b2 = None
+        self.grad_a1 = None
+        self.grad_d1 = None
+        self.grad_w1 = None
+        self.grad_b1 = None
+        
         # kaiming initialization compensates for 50% variance drop due to ReLU activation
         kaiming_w1 = np.sqrt(2 / self.input_size)
         self.w1 = np.random.randn(self.input_size, self.hidden_size) * kaiming_w1
@@ -15,25 +26,21 @@ class NeuralNetwork():
         kaiming_w2 = np.sqrt(2 / self.hidden_size)
         self.w2 = np.random.randn(self.hidden_size, self.output_size) * kaiming_w2
         self.b2 = np.zeros((1, self.output_size))
-        
-        self.forward_prop(np.random.randn(self.batch_size, self.input_size))
     
     def forward_prop(self, data):
         d1 = np.dot(data, self.w1) + self.b1
-        a1 = np.maximum(0, d1) #ReLU activation
+        self.a1 = np.maximum(0, d1) #ReLU activation
         
         # logits
-        d2 = np.dot(a1, self.w2) + self.b2
+        d2 = np.dot(self.a1, self.w2) + self.b2
         
         # softmax activation function
-        a2 = np.exp(d2)
-        a2 = a2 / np.sum(a2, axis=1, keepdims=True)
-        
-        return a1, a2
+        self.a2 = np.exp(d2)
+        self.a2 = self.a2 / np.sum(self.a2, axis=1, keepdims=True)
     
-    def loss_func(self, predictions, labels):
+    def loss_func(self, labels):
         # cross-entropy loss calc
-        probs = predictions[np.arange(self.batch_size), labels]
+        probs = self.a2[np.arange(self.batch_size), labels]
         loss = -np.log(probs + 1e-15)
         
         # mean loss over batch
@@ -41,10 +48,29 @@ class NeuralNetwork():
         
         return avg_loss
     
-    def back_prop():
+    def back_prop(self, data, labels):
+        # chain rule to calculate derivatives starting from predicted vals
+        self.grad_d2 = self.a2.copy()
+        self.grad_d2[np.arange(len(labels)), labels] -= 1
+        self.grad_d2 /= self.batch_size
+        
+        self.grad_w2 = np.dot(self.a1.T, self.grad_d2)
+        self.grad_b2 = np.sum(self.grad_d2, axis=0, keepdims=True)
+        
+        self.grad_a1 = np.dot(self.grad_d2, self.w2.T)
+        
+        self.grad_d1 = self.grad_a1.copy()
+        self.grad_d1[self.a1<0] = 0
+        
+        self.grad_w1 = np.dot(data.T, self.grad_d1)
+        self.grad_b1 = np.sum(self.grad_d1, axis=0, keepdims=True)
+        
         return
-    
-    
-nn = NeuralNetwork(784, 128, 10, 50)
-# nn.loss_func(np.random.rand(50, 10), np.random.randint(0, 10, size=50))
-print(1e-15)
+        
+    def update_params(self, learning_rate):
+        # update rule: 
+        # x = x - learning_rate * grad_x        
+        self.w1 -= learning_rate * self.grad_w1
+        self.b1 -= learning_rate * self.grad_b1
+        self.w2 -= learning_rate * self.grad_w2
+        self.b2 -= learning_rate * self.grad_b2
